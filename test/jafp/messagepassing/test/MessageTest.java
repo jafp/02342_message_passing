@@ -1,4 +1,4 @@
-package dist_systems_message_passing;
+package jafp.messagepassing.test;
 
 import jafp.messagepassing.Message;
 

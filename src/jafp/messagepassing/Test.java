@@ -31,8 +31,8 @@ public class Test {
 		
 		Thread sensorThread = new Thread(sensor);
 		sensorThread.start();
-		sensorThread.join();
 		
+		sensorThread.join();
 		serverThread.join();
 	}
 }

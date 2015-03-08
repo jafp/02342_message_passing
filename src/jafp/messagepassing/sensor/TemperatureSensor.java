@@ -35,6 +35,12 @@ public class TemperatureSensor implements Sensor {
 			} catch (Exception e) {
 				System.err.println("Unable to send message: " + e.getMessage());
 			}
+			try {
+				Thread.sleep(200);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 		m_transport.close();
 	}

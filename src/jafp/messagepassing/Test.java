@@ -4,6 +4,7 @@ import jafp.messagepassing.sensor.Sensor;
 import jafp.messagepassing.sensor.TemperatureSensor;
 import jafp.messagepassing.server.Server;
 import jafp.pubsub.PubSubServer;
+import jafp.pubsub.SocketChannel;
 
 /**
  * Test of the server and the temperature sensor.
@@ -27,7 +28,7 @@ public class Test {
 		Thread serverThread = new Thread(server);
 		serverThread.start();
 		
-		Sensor sensor = new TemperatureSensor(new SocketMessageTransport("127.0.0.1", 34567));
+		Sensor sensor = new TemperatureSensor(new SocketChannel());
 		sensor.connect();
 		
 		Thread sensorThread = new Thread(sensor);

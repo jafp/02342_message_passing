@@ -69,10 +69,16 @@ public class PubSubServer extends Thread {
 	}
 	
 	public void shutdown() {
-		try {
-			m_running = false;
-			m_socket.close();
-		} catch (IOException e) { }
+		synchronized (m_connections) {
+			try {
+				for (Connection conn : m_connections) {
+					conn.m_socket.close();
+				}
+				
+				m_running = false;
+				m_socket.close();
+			} catch (IOException e) { }
+		}
 	}
 
 	private class Connection extends Thread {
@@ -133,12 +139,16 @@ public class PubSubServer extends Thread {
 				}
 			
 				System.out.println("[" + m_no + "] Closing");
-				m_server.removeConnection(this);
-				m_socket.close();
 				
 			} catch (IOException e) {
 				System.out.println("[" + m_no + "] Broken socket (2)");
-				m_server.removeConnection(this);
+				
+			} finally {
+				try { 
+					m_server.removeConnection(this);
+					m_socket.close(); 
+					System.out.println("[" + m_no + "] Removed and closed");
+				} catch (Exception e) { e.printStackTrace(); }
 			}
 		}
 	}

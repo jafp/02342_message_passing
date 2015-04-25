@@ -47,10 +47,21 @@ public class SocketChannel implements Channel, Runnable {
 	}
 
 	@Override
+	public void blockingSubscribe(String name, final SubscribeCallback callback)
+			throws IOException {
+		
+		subscribe(name, callback);
+		
+		try {
+			m_thread.join();
+		} catch (InterruptedException e) { }
+	}
+
+	@Override
 	public void run() {
 		m_running = true;
-		while (m_running) {
-			try {
+		try {
+			while (m_running) {
 				String data = null;
 				while ((data = Sockets.blockingReceivePacked(m_socket)) != null) {
 					Event event = Event.parse(data);
@@ -60,10 +71,11 @@ public class SocketChannel implements Channel, Runnable {
 							m_subscriptions.get(event.getName()).onMessage(event.getName(), event.getMessage());
 						}
 					}
+					data = null;
 				}
-			} catch (Exception e) {
-				m_running = false;
+				m_running = false;	
 			}
+		} catch (Exception e) {
 		}
 	} 
 

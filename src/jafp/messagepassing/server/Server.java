@@ -1,13 +1,12 @@
 package jafp.messagepassing.server;
 
-import jafp.messagepassing.Message;
 import jafp.pubsub.Channel;
+import jafp.pubsub.Event;
 import jafp.pubsub.SocketChannel;
 import jafp.pubsub.SubscribeCallback;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -32,6 +31,7 @@ public class Server implements Runnable, SubscribeCallback {
 	private SensorServerRemoteImpl m_remote; 
 	private Channel m_channel;
 	private int m_port;
+	private long m_sum;
 	private long m_samples;
 	private double m_average;
 	
@@ -48,56 +48,21 @@ public class Server implements Runnable, SubscribeCallback {
 	public void run() {
 		System.out.println("Starting server on port " + m_port);
 		
-		try {
-			// Subscribe to sensor event
-			m_channel.subscribe("sensor", this);
-		} catch (IOException e) { }
-		
-		bindRemote();
-		
-		try { 
-			Socket socket = m_socket.accept();
-			System.out.println("Accepted socket / sensor connection");
-			
-			long sum = 0;
-			m_samples = 0; 
-			m_average = 0;
-			
-			// Buffer for storing messages when read from the socket,
-			// before they are de-serialized into messages
-			byte[] buf = new byte[Message.MESSAGE_SIZE];
-			
-			// Read at minimum the size of message
-			while (socket.getInputStream().read(buf) != -1) {
-				Message message = Message.deserialize(buf);
-				
-				// Sum values and calculate average
-				m_samples++;
-				sum += message.getValue();
-				m_average = (double) sum / m_samples;
-				
-				// Update the RMI remote object
-				m_remote.setAverageTemp(m_average);
-				m_remote.setNumberOfSamples(m_samples);
-				
-				//System.out.format("[Temperature] Current: %d C, Average: %.2f C\n", 
-				//		message.getValue(), m_average);
-			}
-			
-			System.out.println("Done (sensor closed connection)");
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-		System.out.println("Server. Done.");
+		m_sum = 0;
+		m_samples = 0;
+		m_average = 0;
 		
 		try {
+			m_channel.blockingSubscribe("sensor", this);
 			m_channel.unSubscribe("sensor");
 			m_channel.close();
+
+			unbindRemote();
+			
+			System.out.println("[Sensor server] Channel closed");
 		} catch (IOException e) {}
 		
-		unbindRemote();
+		System.out.println("[Sensor server] Done.");
 	}
 	
 	private void bindRemote() {
@@ -120,13 +85,44 @@ public class Server implements Runnable, SubscribeCallback {
 
 	@Override
 	public void onMessage(String name, String message) {
-		//System.out.println("MSG");
 		if ("sensor".equals(name)) {	
-			String sensor = message.split(":")[0];
-			double value = Double.valueOf(message.split(":")[1]);
+			SensorValue val = SensorValue.parse(message);
 			
-			System.out.println("[Sensor] " + sensor + " = " + value);
+			if ("temp".equalsIgnoreCase(val.getName())) {
+				m_samples++;
+				m_sum += val.getValue();
+				m_average = (double) m_sum / m_samples;
+				
+				// Update the RMI remote object
+				//m_remote.setAverageTemp(m_average);
+				//m_remote.setNumberOfSamples(m_samples);
+				
+				System.out.format("[Temperature] Average: %.2f Current: %.2f\n", m_average, val.getValue());
+			}
+		}
+	}
+	
+	private static class SensorValue {
+		
+		public static SensorValue parse(String data) {
+			String[] parts = data.split(Event.SEPARATOR);
+			return new SensorValue(parts[0], Double.valueOf(parts[1]));
 		}
 		
+		private String m_name;
+		private double m_value;
+		
+		private SensorValue(String name, double value) {
+			m_name = name;
+			m_value = value;
+		}
+		
+		public String getName() {
+			return m_name;
+		}
+		
+		public double getValue() {
+			return m_value;
+		}
 	}
 }

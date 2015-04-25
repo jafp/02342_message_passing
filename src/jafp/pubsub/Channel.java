@@ -9,4 +9,6 @@ public interface Channel {
 	public void subscribe(String name, SubscribeCallback callback) throws IOException;
 	public void unSubscribe(String name) throws IOException;
 	public void requestShutdown() throws IOException;
+	public void blockingSubscribe(String name, SubscribeCallback callback)
+			throws IOException;
 }

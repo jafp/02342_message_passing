@@ -52,15 +52,16 @@ public class Server implements Runnable, SubscribeCallback {
 		m_samples = 0;
 		m_average = 0;
 		
+		bindRemote();
+		
 		try {
 			m_channel.blockingSubscribe("sensor", this);
-			m_channel.unSubscribe("sensor");
 			m_channel.close();
 
-			unbindRemote();
-			
 			System.out.println("[Sensor server] Channel closed");
-		} catch (IOException e) {}
+		} catch (IOException e) { e.printStackTrace(); }
+
+		unbindRemote();
 		
 		System.out.println("[Sensor server] Done.");
 	}
@@ -70,6 +71,7 @@ public class Server implements Runnable, SubscribeCallback {
 			SensorServerRemote remote = (SensorServerRemote) UnicastRemoteObject.exportObject(m_remote, 0);
 			Registry registry = LocateRegistry.getRegistry();
 			registry.rebind(RMI_NAME, remote);
+			System.out.println("[Sensor server] Bound to RMI remote");
 		} catch (RemoteException e) {
 			System.err.println("ERROR: Could not bind RMI remote");
 		}
@@ -79,7 +81,9 @@ public class Server implements Runnable, SubscribeCallback {
 		try {
 			Registry registry = LocateRegistry.getRegistry();
 			registry.unbind(RMI_NAME);
+			System.out.println("[Sensor server] Unbound from RMI remote");
 		} catch (RemoteException | NotBoundException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -94,15 +98,15 @@ public class Server implements Runnable, SubscribeCallback {
 				m_average = (double) m_sum / m_samples;
 				
 				// Update the RMI remote object
-				//m_remote.setAverageTemp(m_average);
-				//m_remote.setNumberOfSamples(m_samples);
+				m_remote.setAverageTemp(m_average);
+				m_remote.setNumberOfSamples(m_samples);
 				
 				System.out.format("[Temperature] Average: %.2f Current: %.2f\n", m_average, val.getValue());
 			}
 		}
 	}
 	
-	private static class SensorValue {
+	public static class SensorValue {
 		
 		public static SensorValue parse(String data) {
 			String[] parts = data.split(Event.SEPARATOR);
@@ -112,7 +116,7 @@ public class Server implements Runnable, SubscribeCallback {
 		private String m_name;
 		private double m_value;
 		
-		private SensorValue(String name, double value) {
+		public SensorValue(String name, double value) {
 			m_name = name;
 			m_value = value;
 		}
@@ -123,6 +127,10 @@ public class Server implements Runnable, SubscribeCallback {
 		
 		public double getValue() {
 			return m_value;
+		}
+		
+		public String getPacket() {
+			return getName() + Event.SEPARATOR + String.valueOf(getValue());
 		}
 	}
 }

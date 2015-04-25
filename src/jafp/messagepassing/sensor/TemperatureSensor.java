@@ -1,5 +1,6 @@
 package jafp.messagepassing.sensor;
 
+import jafp.messagepassing.server.Server.SensorValue;
 import jafp.pubsub.Channel;
 
 /**
@@ -17,14 +18,13 @@ public class TemperatureSensor implements Sensor {
 	public void run() {
 		try {
 			for (int i = 0; i < 100; i++) {
-				// Generate a random temperature in the range 14-24
 				int temperature = 14 + ((int) (Math.random() * 10) + 1);
 				
-				// Publish a "sensor" event on the channel
-				m_channel.publish("sensor", "temp:" + temperature);
+				SensorValue value = new SensorValue("temp", temperature);
+				m_channel.publish("sensor", value.getPacket());
 			
 				try {
-					Thread.sleep(50);
+					Thread.sleep(500);
 				} catch (InterruptedException e) { }
 			}
 			

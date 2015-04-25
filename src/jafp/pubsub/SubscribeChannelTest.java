@@ -21,10 +21,15 @@ public class SubscribeChannelTest {
 		ch.subscribe("foo", cb);
 		ch.subscribe("bar", cb);
 		
-		Thread.sleep(5000);
-	
-		ch.close();
+		ch.publish("random", "Hello, world!");
 		
+		Thread.sleep(5000);
+		
+		System.out.println("Requesting server shutdown");
+		ch.requestShutdown();
+		
+		ch.close();
+		System.out.println("Done.");
 	}
 	
 }

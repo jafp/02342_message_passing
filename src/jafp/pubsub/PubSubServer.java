@@ -7,25 +7,28 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 
-public class QueueServer extends Thread {
+public class PubSubServer extends Thread {
 	
 	public static int PORT = 45332;
 	
+	private boolean m_running;
+	private ServerSocket m_socket;
 	private ArrayList<Connection> m_connections;
 	
-	public QueueServer() {
+	public PubSubServer() {
 		m_connections = new ArrayList<Connection>();
 	}
 	
 	@Override
 	public void run() {
-		ServerSocket socket = null;
+		m_running = true;
+		m_socket = null;
 		try {
 			int socketCounter = 0;
-			socket = new ServerSocket(PORT);
+			m_socket = new ServerSocket(PORT);
 			
-			while (true) {
-				Socket sock = socket.accept();
+			while (m_running) {
+				Socket sock = m_socket.accept();
 				
 				Connection conn = new Connection(++socketCounter, this, sock);
 				addConnection(conn);
@@ -34,15 +37,13 @@ public class QueueServer extends Thread {
 				System.out.println("New connection #" + conn.getNo() +  " - " + sock.getInetAddress());
 			}
 			
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
-		if (socket != null) {
+		} catch (IOException e) {
+			// Ignore
+			
+		} finally {
 			try {
-				socket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+				m_socket.close();
+			} catch (IOException e) { }	
 		}
 	}
 
@@ -66,16 +67,23 @@ public class QueueServer extends Thread {
 			m_connections.remove(conn);
 		}
 	}
+	
+	public void shutdown() {
+		try {
+			m_running = false;
+			m_socket.close();
+		} catch (IOException e) { }
+	}
 
 	private class Connection extends Thread {
 		
 		private int m_no;
 		private Socket m_socket;
-		private QueueServer m_server;
+		private PubSubServer m_server;
 		private ArrayList<String> m_subscriptions;
 	
 		
-		public Connection(int no, QueueServer server, Socket socket) {
+		public Connection(int no, PubSubServer server, Socket socket) {
 			m_no = no;
 			m_socket = socket;
 			m_server = server;
@@ -92,7 +100,7 @@ public class QueueServer extends Thread {
 					Sockets.blockingSendPacked(m_socket, event.getRaw());
 				}
 			} catch (IOException e) {
-				System.out.println("Broken (1) #" + m_no);
+				System.out.println("[" + m_no + "] Broken socket (1)");
 				m_server.removeConnection(this);
 			}
 			
@@ -109,15 +117,27 @@ public class QueueServer extends Thread {
 						m_server.publishEvent(ev);
 						
 					} else if (ev.isSubscribe()) {
+						System.out.println("[" + m_no + "] Subscribe to '" + ev.getName() + "'");
 						m_subscriptions.add(ev.getName());
+						
+					} else if (ev.isUnsubscribe()) {
+						System.out.println("[" + m_no + "] Unsubscribe from '" + ev.getName() + "'");
+						m_subscriptions.remove(ev.getName());
+						
+					} else if (ev.isShutdown()) {
+						System.out.println("[" + m_no + "] Requested shutdown");
+						
+						m_server.shutdown();
+						break;
 					}
 				}
 			
-				System.out.println("Closing connection #" + m_no);
+				System.out.println("[" + m_no + "] Closing");
 				m_server.removeConnection(this);
 				m_socket.close();
+				
 			} catch (IOException e) {
-				System.out.println("Broken (2) #" + m_no);
+				System.out.println("[" + m_no + "] Broken socket (2)");
 				m_server.removeConnection(this);
 			}
 		}
@@ -125,10 +145,10 @@ public class QueueServer extends Thread {
 	
 
 	public static void main(String[] args) throws InterruptedException {
-		QueueServer server = new QueueServer();
+		PubSubServer server = new PubSubServer();
 		server.start();
 		
-		System.out.println("Queue server started on port " + PORT);
+		System.out.println("Pubsub server started on port " + PORT);
 		server.join();
 		
 		System.out.println("Stopped.");

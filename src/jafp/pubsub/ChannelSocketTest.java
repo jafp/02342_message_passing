@@ -9,6 +9,7 @@ public class ChannelSocketTest {
 		Channel ch = new SocketChannel();
 		ch.open("localhost");
 		ch.publish("foo", "hello foo world 222");
+		
 		ch.close();
 	}
 }

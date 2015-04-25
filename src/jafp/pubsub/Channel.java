@@ -8,4 +8,5 @@ public interface Channel {
 	public void publish(String name, String message) throws IOException;
 	public void subscribe(String name, SubscribeCallback callback) throws IOException;
 	public void unSubscribe(String name) throws IOException;
+	public void requestShutdown() throws IOException;
 }

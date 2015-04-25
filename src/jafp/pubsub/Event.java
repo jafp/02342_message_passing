@@ -6,6 +6,8 @@ public class Event {
 	public static String TYPE_MESSAGE = "message";
 	public static String TYPE_PUBLISH = "publish";
 	public static String TYPE_SUBSCRIBE = "subscribe";
+	public static String TYPE_UNSUBSCRIBE = "unsubscribe";
+	public static String TYPE_SHUTDOWN = "shutdown";
 	
 	private String m_type;
 	private String m_name;
@@ -33,8 +35,16 @@ public class Event {
 		return TYPE_SUBSCRIBE.equalsIgnoreCase(getType());
 	}
 	
+	public boolean isUnsubscribe() {
+		return TYPE_UNSUBSCRIBE.equalsIgnoreCase(getType());
+	}
+	
 	public boolean isPublish() {
 		return TYPE_PUBLISH.equalsIgnoreCase(getType());
+	}
+	
+	public boolean isShutdown() {
+		return TYPE_SHUTDOWN.equalsIgnoreCase(getType());
 	}
 	
 	public String getRaw() {

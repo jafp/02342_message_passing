@@ -21,7 +21,7 @@ public class SocketChannel implements Channel, Runnable {
 	
 	@Override
 	public void open(String host) throws IOException {
-		m_socket = new Socket(host, QueueServer.PORT);
+		m_socket = new Socket(host, PubSubServer.PORT);
 		m_thread.start();
 	}
 
@@ -33,16 +33,13 @@ public class SocketChannel implements Channel, Runnable {
 
 	@Override
 	public void publish(String name, String message) throws IOException {
-		Event ev = new Event(Event.TYPE_PUBLISH, name, message);
-		Sockets.blockingSendPacked(m_socket, ev.getRaw());
+		send(Event.TYPE_PUBLISH, name, message);
 	}
 
 	@Override
 	public void subscribe(String name, final SubscribeCallback callback)
 			throws IOException {
-		
-		Event ev = new Event(Event.TYPE_SUBSCRIBE, name, null);
-		Sockets.blockingSendPacked(m_socket, ev.getRaw());
+		send(Event.TYPE_SUBSCRIBE, name, null);
 		
 		synchronized (m_subscriptions) {
 			m_subscriptions.put(name, callback);
@@ -75,9 +72,21 @@ public class SocketChannel implements Channel, Runnable {
 		synchronized (m_subscriptions) {
 			m_subscriptions.remove(name);
 		}
-		// TODO Un-subscribe on server
+		send(Event.TYPE_UNSUBSCRIBE, name, null);
 	}
 	
+	@Override
+	public void requestShutdown() throws IOException {
+		if (m_socket != null) {
+			send(Event.TYPE_SHUTDOWN, null, null);
+		}
+	}
 	
+	private void send(String type, String name, String msg) throws IOException {
+		if (m_socket != null) {
+			Event ev = new Event(type, name, msg);
+			Sockets.blockingSendPacked(m_socket, ev.getRaw());
+		}
+	}
 	
 }

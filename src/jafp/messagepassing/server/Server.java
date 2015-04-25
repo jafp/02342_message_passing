@@ -1,6 +1,9 @@
 package jafp.messagepassing.server;
 
 import jafp.messagepassing.Message;
+import jafp.pubsub.Channel;
+import jafp.pubsub.SocketChannel;
+import jafp.pubsub.SubscribeCallback;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -21,25 +24,35 @@ import java.rmi.server.UnicastRemoteObject;
  * and the average is printed.
  * 
  */
-public class Server implements Runnable {
+public class Server implements Runnable, SubscribeCallback {
 	
 	public static final String RMI_NAME = "SensorServerRemote";
 	
 	private ServerSocket m_socket;
 	private SensorServerRemoteImpl m_remote; 
+	private Channel m_channel;
 	private int m_port;
 	private long m_samples;
 	private double m_average;
 	
+	
 	public Server(int port) throws IOException {
 		m_port = port;
 		m_socket = new ServerSocket(m_port);
-		m_remote = new SensorServerRemoteImpl();	
+		m_remote = new SensorServerRemoteImpl();
+		m_channel = new SocketChannel();
+		m_channel.open("localhost");
 	}
 
 	@Override
 	public void run() {
 		System.out.println("Starting server on port " + m_port);
+		
+		try {
+			// Subscribe to sensor event
+			m_channel.subscribe("sensor", this);
+		} catch (IOException e) { }
+		
 		bindRemote();
 		
 		try { 
@@ -67,8 +80,8 @@ public class Server implements Runnable {
 				m_remote.setAverageTemp(m_average);
 				m_remote.setNumberOfSamples(m_samples);
 				
-				System.out.format("[Temperature] Current: %d C, Average: %.2f C\n", 
-						message.getValue(), m_average);
+				//System.out.format("[Temperature] Current: %d C, Average: %.2f C\n", 
+				//		message.getValue(), m_average);
 			}
 			
 			System.out.println("Done (sensor closed connection)");
@@ -76,6 +89,13 @@ public class Server implements Runnable {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		System.out.println("Server. Done.");
+		
+		try {
+			m_channel.unSubscribe("sensor");
+			m_channel.close();
+		} catch (IOException e) {}
 		
 		unbindRemote();
 	}
@@ -96,5 +116,17 @@ public class Server implements Runnable {
 			registry.unbind(RMI_NAME);
 		} catch (RemoteException | NotBoundException e) {
 		}
+	}
+
+	@Override
+	public void onMessage(String name, String message) {
+		//System.out.println("MSG");
+		if ("sensor".equals(name)) {	
+			String sensor = message.split(":")[0];
+			double value = Double.valueOf(message.split(":")[1]);
+			
+			System.out.println("[Sensor] " + sensor + " = " + value);
+		}
+		
 	}
 }

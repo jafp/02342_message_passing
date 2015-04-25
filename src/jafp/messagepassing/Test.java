@@ -3,6 +3,7 @@ package jafp.messagepassing;
 import jafp.messagepassing.sensor.Sensor;
 import jafp.messagepassing.sensor.TemperatureSensor;
 import jafp.messagepassing.server.Server;
+import jafp.pubsub.QueueServer;
 
 /**
  * Test of the server and the temperature sensor.
